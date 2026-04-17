@@ -1,0 +1,62 @@
+From df6a108f63568aba8819f061fffc6b65aa16fc65 Mon Sep 17 00:00:00 2001
+From: Steffen Deusch <steffen@deusch.me>
+Date: Tue, 31 Mar 2026 21:15:52 +0000
+Subject: Enable halium.config as GKI defconfig fragment
+
+- Add defconfig_fragments reference to kernel_aarch64 and
+  kernel_aarch64_16k targets in BUILD.bazel
+- Disable check_defconfig POST_DEFCONFIG_CMD that enforces exact
+  match with gki_defconfig (incompatible with fragments)
+- Add CONFIG_USB_CONFIGFS_RNDIS=y to halium.config for USB
+  networking (SSH debugging over USB)
+
+Change-Id: I6c067f40220a6540de666e5a732fcc3e0326df77
+---
+ BUILD.bazel                      | 2 ++
+ arch/arm64/configs/halium.config | 3 +++
+ build.config.gki                 | 3 ++-
+ 3 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/BUILD.bazel b/BUILD.bazel
+index d5c90df09987..7c72f873fff2 100644
+--- a/BUILD.bazel
++++ b/BUILD.bazel
+@@ -147,6 +147,7 @@ define_common_kernels(target_configs = {
+         "protected_exports_list": "android/abi_gki_protected_exports_aarch64",
+         "protected_modules_list": "android/gki_aarch64_protected_modules",
+         "make_goals": _GKI_AARCH64_MAKE_GOALS,
++        "defconfig_fragments": ["arch/arm64/configs/halium.config"],
+     },
+     "kernel_aarch64_16k": {
+         "kmi_symbol_list_strict_mode": True,
+@@ -158,6 +159,7 @@ define_common_kernels(target_configs = {
+         "protected_exports_list": "android/abi_gki_protected_exports_aarch64",
+         "protected_modules_list": "android/gki_aarch64_protected_modules",
+         "make_goals": _GKI_AARCH64_MAKE_GOALS,
++        "defconfig_fragments": ["arch/arm64/configs/halium.config"],
+     },
+     "kernel_aarch64_debug": {
+         "kmi_symbol_list_strict_mode": False,
+diff --git a/arch/arm64/configs/halium.config b/arch/arm64/configs/halium.config
+index 9d17be850e9a..c6905cb34b84 100644
+--- a/arch/arm64/configs/halium.config
++++ b/arch/arm64/configs/halium.config
+@@ -34,3 +34,6 @@ CONFIG_SQUASHFS_XZ=y
+ CONFIG_SQUASHFS_ZSTD=y
+ # FIXME: breaks GKI ABI somehow, needed by some snaps like btop & qtcreator
+ #CONFIG_CGROUP_DEVICE=y
++
++# USB networking (RNDIS) for SSH debugging over USB
++CONFIG_USB_CONFIGFS_RNDIS=y
+diff --git a/build.config.gki b/build.config.gki
+index 4b931d9eb333..8ff5f5b529bd 100644
+--- a/build.config.gki
++++ b/build.config.gki
+@@ -1,2 +1,3 @@
+ DEFCONFIG=gki_defconfig
+-POST_DEFCONFIG_CMDS="check_defconfig"
++# Disabled to allow defconfig_fragments (e.g. halium.config) to extend GKI config
++#POST_DEFCONFIG_CMDS="check_defconfig"
+-- 
+2.43.0
+

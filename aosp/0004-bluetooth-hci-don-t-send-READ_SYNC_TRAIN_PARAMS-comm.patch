@@ -1,0 +1,40 @@
+From 76c5438dd64cf6d66ab771bfd261241d04177f2d Mon Sep 17 00:00:00 2001
+From: TheKit <nekit1000@gmail.com>
+Date: Thu, 24 Mar 2022 14:58:20 +0200
+Subject: bluetooth: hci: don't send READ_SYNC_TRAIN_PARAMS command
+
+BT chip returns error for HCI_OP_READ_SYNC_TRAIN_PARAMS,
+which causes the initialization to fail. As this feature is not used
+anywhere, skipping reading the parameters should be safe.
+
+Inspired by https://github.com/gemian/gemini-linux-kernel-3.18/commit/5a77c4336a50f446c97db6a286cf898422c1dcec
+---
+ net/bluetooth/hci_sync.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/net/bluetooth/hci_sync.c b/net/bluetooth/hci_sync.c
+index 6da4e725a642..59e99001bdee 100644
+--- a/net/bluetooth/hci_sync.c
++++ b/net/bluetooth/hci_sync.c
+@@ -4621,11 +4621,18 @@ static int hci_get_mws_transport_config_sync(struct hci_dev *hdev)
+ /* Check for Synchronization Train support */
+ static int hci_read_sync_train_params_sync(struct hci_dev *hdev)
+ {
++	/* Halium: BT chip returns error for HCI_OP_READ_SYNC_TRAIN_PARAMS,
++	 * which causes the initialization to fail. As this feature is not used
++	 * anywhere, skipping reading the parameters should be safe. */
++#if 0
+ 	if (!lmp_sync_train_capable(hdev))
+ 		return 0;
+ 
+ 	return __hci_cmd_sync_status(hdev, HCI_OP_READ_SYNC_TRAIN_PARAMS,
+ 				     0, NULL, HCI_CMD_TIMEOUT);
++#else
++	return 0;
++#endif
+ }
+ 
+ /* Enable Secure Connections if supported and configured */
+-- 
+2.43.0
+

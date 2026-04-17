@@ -1,0 +1,26 @@
+From c85094cbe6095a0ea7cdae209772719ba765e218 Mon Sep 17 00:00:00 2001
+From: TheKit <thekit@disroot.org>
+Date: Fri, 28 Nov 2025 05:00:21 +0200
+Subject: halium.config: disable protected GKI modules enforcement
+
+The signatures may not match if kernel and modules come from
+a different build, so relax the restrictions to make things easier
+for halium-gki builds.
+---
+ arch/arm64/configs/halium.config | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/arch/arm64/configs/halium.config b/arch/arm64/configs/halium.config
+index 5350ba3beafe..426757416ee3 100644
+--- a/arch/arm64/configs/halium.config
++++ b/arch/arm64/configs/halium.config
+@@ -8,3 +8,6 @@ CONFIG_DEVTMPFS=y
+ CONFIG_LTO_CLANG_THIN=y
+ # bluebinder
+ CONFIG_BT_HCIVHCI=y
++# Do not enforce kernel modules signature
++# CONFIG_MODULE_SIG_FORCE is not set
++# CONFIG_MODULE_SIG_PROTECT is not set
+-- 
+2.43.0
+

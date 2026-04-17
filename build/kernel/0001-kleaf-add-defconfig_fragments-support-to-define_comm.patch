@@ -1,0 +1,47 @@
+From 60d20ba21d2e63d0e63e158438e41e5dd10c0e96 Mon Sep 17 00:00:00 2001
+From: Steffen Deusch <steffen@deusch.me>
+Date: Tue, 31 Mar 2026 21:15:46 +0000
+Subject: kleaf: add defconfig_fragments support to define_common_kernels
+
+Thread the defconfig_fragments parameter through _define_common_kernel
+to kernel_build, allowing GKI kernel builds to apply config fragments
+(e.g. halium.config) on top of gki_defconfig.
+
+Change-Id: Id503fc3782dca0c6a0283bb23de61d9f3b54ccdd
+---
+ kleaf/common_kernels.bzl | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/kleaf/common_kernels.bzl b/kleaf/common_kernels.bzl
+index ac2d4884..e7ebdbf6 100644
+--- a/kleaf/common_kernels.bzl
++++ b/kleaf/common_kernels.bzl
+@@ -645,7 +645,8 @@ def _define_common_kernel(
+         kmi_enforced = None,
+         build_gki_artifacts = None,
+         gki_boot_img_sizes = None,
+-        page_size = None):
++        page_size = None,
++        defconfig_fragments = None):
+     json_target_config = dict(
+         name = name,
+         outs = outs,
+@@ -668,6 +669,7 @@ def _define_common_kernel(
+         build_gki_artifacts = build_gki_artifacts,
+         gki_boot_img_sizes = gki_boot_img_sizes,
+         page_size = page_size,
++        defconfig_fragments = defconfig_fragments,
+     )
+     json_target_config = json.encode_indent(json_target_config, indent = "    ")
+     json_target_config = json_target_config.replace("null", "None")
+@@ -739,6 +741,7 @@ def _define_common_kernel(
+         protected_modules_list = protected_modules_list,
+         make_goals = make_goals,
+         page_size = page_size,
++        defconfig_fragments = defconfig_fragments,
+     )
+ 
+     kernel_abi(
+-- 
+2.43.0
+
