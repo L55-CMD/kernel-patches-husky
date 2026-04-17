@@ -1,0 +1,22 @@
+From 8096f13daa267ded7c77774d9a7b986d7fe2032d Mon Sep 17 00:00:00 2001
+From: Steffen Deusch <steffen@deusch.me>
+Date: Fri, 17 Apr 2026 16:14:38 +0000
+Subject: google/zumapro: include hci_vhci module
+
+---
+ google/zumapro/constants.bzl | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/google/zumapro/constants.bzl b/google/zumapro/constants.bzl
+index 6a904abf..672c0f98 100644
+--- a/google/zumapro/constants.bzl
++++ b/google/zumapro/constants.bzl
+@@ -31,4 +31,5 @@ ZUMAPRO_MODULE_OUTS = [
+     "drivers/watchdog/softdog.ko",
+     "net/mac80211/mac80211.ko",
+     "net/wireless/cfg80211.ko",
++    "drivers/bluetooth/hci_vhci.ko",
+ ]
+-- 
+2.43.0
+

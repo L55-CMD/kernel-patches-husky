@@ -1,10 +1,7 @@
-From 31fca2b20c42db8f0d8cf1fecc2bded0cb2a4c1a Mon Sep 17 00:00:00 2001
+From a55a9f5b63cc1e22e276e11c71bcbf0f0373b9bb Mon Sep 17 00:00:00 2001
 From: Steffen Deusch <steffen@deusch.me>
-Date: Fri, 17 Apr 2026 16:10:00 +0000
-Subject: [PATCH] google/common: enable vendor_dlkm flatten image
-
-Match the previous local tegu build behavior by requesting
-vendor_dlkm.flatten.img from the shared device_build helper.
+Date: Fri, 17 Apr 2026 16:14:38 +0000
+Subject: google/common: enable vendor_dlkm flatten image
 
 ---
  google/common/kleaf/device_build.bzl | 1 +
@@ -24,3 +21,4 @@ index 6f3acb09..fab560ae 100644
          ramdisk_compression = "lz4",
 -- 
 2.43.0
+

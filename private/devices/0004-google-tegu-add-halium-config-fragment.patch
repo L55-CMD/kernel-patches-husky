@@ -1,0 +1,59 @@
+From ea0f7e075f57cc0e940ec0ad5efceacc1b906451 Mon Sep 17 00:00:00 2001
+From: Steffen Deusch <steffen@deusch.me>
+Date: Fri, 17 Apr 2026 16:14:38 +0000
+Subject: google/tegu: add halium config fragment
+
+---
+ google/tegu/BUILD.bazel   |  2 +-
+ google/tegu/halium.config | 26 ++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)
+ create mode 100644 google/tegu/halium.config
+
+diff --git a/google/tegu/BUILD.bazel b/google/tegu/BUILD.bazel
+index ffc655ce..7bb40526 100644
+--- a/google/tegu/BUILD.bazel
++++ b/google/tegu/BUILD.bazel
+@@ -13,7 +13,7 @@ device_build(
+     build_system_dlkm = True,
+     build_vendor_dlkm = True,
+     build_vendor_kernel_boot = True,
+-    defconfig_fragments = ["tegu_defconfig"],
++    defconfig_fragments = ["tegu_defconfig", "halium.config"],
+     dtb_outs = ZUMAPRO_DTBS,
+     dtbo_additional_outs = ZUMAPRO_DPM_DTBOS,
+     dtbo_outs = TEGU_DTBOS,
+diff --git a/google/tegu/halium.config b/google/tegu/halium.config
+new file mode 100644
+index 00000000..31ce547e
+--- /dev/null
++++ b/google/tegu/halium.config
+@@ -0,0 +1,26 @@
++CONFIG_VT=y
++CONFIG_NULL_TTY=y
++CONFIG_DEVTMPFS=y
++# bluebinder - keep as modules to match GKI expectations
++CONFIG_BT_HCIVHCI=m
++# Do not enforce kernel modules signature
++# CONFIG_MODULE_SIG_FORCE is not set
++# CONFIG_MODULE_SIG_PROTECT is not set
++
++# AppArmor
++CONFIG_SECURITY_APPARMOR=y
++CONFIG_DEFAULT_SECURITY_APPARMOR=y
++CONFIG_LSM="landlock,lockdown,yama,loadpin,safesetid,integrity,apparmor,selinux,smack,tomoyo,bpf"
++
++# Waydroid
++CONFIG_ANDROID_BINDER_DEVICES="binder,hwbinder,vndbinder,anbox-binder,anbox-hwbinder,anbox-vndbinder"
++CONFIG_NETFILTER_XT_TARGET_CHECKSUM=y
++CONFIG_SQUASHFS=y
++CONFIG_SQUASHFS_FILE_DIRECT=y
++CONFIG_SQUASHFS_DECOMP_MULTI_PERCPU=y
++# Snap
++CONFIG_SQUASHFS_LZ4=y
++CONFIG_SQUASHFS_LZO=y
++CONFIG_SQUASHFS_XZ=y
++CONFIG_SQUASHFS_ZSTD=y
++CONFIG_CFI_PERMISSIVE=y
+-- 
+2.43.0
+

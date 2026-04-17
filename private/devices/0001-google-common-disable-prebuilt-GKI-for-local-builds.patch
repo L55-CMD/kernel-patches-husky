@@ -1,0 +1,31 @@
+From a661dbe507ad5130cff93941cf219dcceda58eaf Mon Sep 17 00:00:00 2001
+From: Steffen Deusch <steffen@deusch.me>
+Date: Fri, 17 Apr 2026 16:14:38 +0000
+Subject: google/common: disable prebuilt GKI for local builds
+
+---
+ google/common/device.bazelrc | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/google/common/device.bazelrc b/google/common/device.bazelrc
+index a7450792..b9a2190c 100644
+--- a/google/common/device.bazelrc
++++ b/google/common/device.bazelrc
+@@ -11,11 +11,11 @@ build --flag_alias=download_prebuilt_gki_fips140=//private/devices/google/common
+ build --action_env=KLEAF_DOWNLOAD_BUILD_NUMBER_MAP="gki_prebuilts=14219743,gki_prebuilts_aarch64_16k=14219743"
+ 
+ # Use prebuilt GKI
+-build --use_prebuilt_gki=true
+-build --use_signed_prebuilts=true
++build --use_prebuilt_gki=false
++build --use_signed_prebuilts=false
+ 
+ # Use prebuilt fips140.ko
+-build --download_prebuilt_gki_fips140=true
++build --download_prebuilt_gki_fips140=false
+ 
+ # Debug configs
+ import %workspace%/private/devices/google/common/debug/debug.bazelrc
+-- 
+2.43.0
+
