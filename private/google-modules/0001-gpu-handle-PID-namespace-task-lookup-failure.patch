@@ -1,0 +1,100 @@
+From 82331ece28d9ad2f5c58bb5e4cfdced3225f2d48 Mon Sep 17 00:00:00 2001
+From: Steffen Deusch <steffen@deusch.me>
+Date: Fri, 17 Apr 2026 16:17:15 +0000
+Subject: gpu: handle PID namespace task lookup failure
+
+On tegu, gpu_dvfs_kctx_init() can run for a process whose TGID is
+not resolvable in the init PID namespace. In that case get_pid_task()
+returns NULL and the current code dereferences task->cred->uid,
+crashing the kernel while creating a Mali GPU context.
+
+Handle a missing task by falling back to GLOBAL_ROOT_UID for DVFS
+per-UID metrics accounting. That UID is only used for metrics, so the
+fallback is safe and keeps context creation alive.
+
+Also keep the defensive READ_ONCE()-based checks for kbdev and
+platform_context so incomplete GPU platform initialization is rejected
+with -ENODEV instead of walking invalid pointers.
+---
+ gpu/mali_kbase/platform/pixel/pixel_gpu.c     |  7 +++-
+ .../platform/pixel/pixel_gpu_dvfs_metrics.c   | 33 +++++++++++++++----
+ 2 files changed, 33 insertions(+), 7 deletions(-)
+
+diff --git a/gpu/mali_kbase/platform/pixel/pixel_gpu.c b/gpu/mali_kbase/platform/pixel/pixel_gpu.c
+index ac8fe19dc7..a71c204768 100644
+--- a/gpu/mali_kbase/platform/pixel/pixel_gpu.c
++++ b/gpu/mali_kbase/platform/pixel/pixel_gpu.c
+@@ -51,10 +51,15 @@ static int gpu_fw_cfg_init(struct kbase_device *kbdev) {
+  */
+ static int gpu_pixel_kctx_init(struct kbase_context *kctx)
+ {
+-	struct kbase_device* kbdev = kctx->kbdev;
++	struct kbase_device* kbdev;
+ 	struct pixel_platform_data *platform_data;
+ 	int err;
+ 
++	kbdev = kctx->kbdev;
++	if (WARN_ONCE(!kbdev || !kbdev->platform_context,
++		      "pixel: GPU platform not initialized, rejecting context\n"))
++		return -ENODEV;
++
+ 	kctx->platform_data = kzalloc(sizeof(struct pixel_platform_data), GFP_KERNEL);
+ 	if (kctx->platform_data == NULL) {
+ 		dev_err(kbdev->dev, "pixel: failed to alloc platform_data for kctx");
+diff --git a/gpu/mali_kbase/platform/pixel/pixel_gpu_dvfs_metrics.c b/gpu/mali_kbase/platform/pixel/pixel_gpu_dvfs_metrics.c
+index bfb022f713..ea190b6af3 100644
+--- a/gpu/mali_kbase/platform/pixel/pixel_gpu_dvfs_metrics.c
++++ b/gpu/mali_kbase/platform/pixel/pixel_gpu_dvfs_metrics.c
+@@ -263,9 +263,9 @@ static void gpu_dvfs_destroy_uid_stats(struct gpu_dvfs_metrics_uid_stats *stats)
+  */
+ int gpu_dvfs_kctx_init(struct kbase_context *kctx)
+ {
+-	struct kbase_device *kbdev = kctx->kbdev;
+-	struct pixel_context *pc = kbdev->platform_context;
+-	struct pixel_platform_data *pd = kctx->platform_data;
++	struct kbase_device *kbdev;
++	struct pixel_context *pc;
++	struct pixel_platform_data *pd;
+ 	struct task_struct *task;
+ 	struct pid *pid;
+ 	kuid_t uid;
+@@ -275,12 +275,33 @@ int gpu_dvfs_kctx_init(struct kbase_context *kctx)
+ 	struct gpu_dvfs_metrics_uid_stats *stats = NULL;
+ 	int ret = 0;
+ 
++	kbdev = READ_ONCE(kctx->kbdev);
++	if (!kbdev) {
++		pr_err("pixel: kbdev is NULL in gpu_dvfs_kctx_init\n");
++		return -ENODEV;
++	}
++	pc = READ_ONCE(kbdev->platform_context);
++	if (!pc) {
++		dev_err(kbdev->dev,
++			"pixel: GPU platform_context not initialized, cannot create context\n");
++		return -ENODEV;
++	}
++	pd = kctx->platform_data;
++
+ 	/* Get UID from task_struct */
+ 	pid = find_get_pid(kctx->kprcs->tgid);
+ 	task = get_pid_task(pid, PIDTYPE_TGID);
+-	uid = task->cred->uid;
+-	put_task_struct(task);
+-	put_pid(pid);
++	if (!task) {
++		put_pid(pid);
++		dev_warn(kbdev->dev,
++			 "pixel: gpu_dvfs_kctx_init: task not found for tgid %d\n",
++			 kctx->kprcs->tgid);
++		uid = GLOBAL_ROOT_UID;
++	} else {
++		uid = task->cred->uid;
++		put_task_struct(task);
++		put_pid(pid);
++	}
+ 	uid_hash = gpu_dvfs_hash_uid_stats(__kuid_val(uid));
+ 
+ 	mutex_lock(&kbdev->kctx_list_lock);
+-- 
+2.43.0
+
