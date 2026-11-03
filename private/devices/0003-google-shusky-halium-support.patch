@@ -58,16 +58,7 @@ index 0000000..31ce547
 +CONFIG_SQUASHFS_XZ=y
 +CONFIG_SQUASHFS_ZSTD=y
 +CONFIG_CFI_PERMISSIVE=y
-diff --git a/google/zuma/constants.bzl b/google/zuma/constants.bzl
-index 4ec3161..50ef789 100644
---- a/google/zuma/constants.bzl
-+++ b/google/zuma/constants.bzl
-@@ -20,6 +20,7 @@ ZUMA_DPM_DTBOS = [
- 
- ZUMA_MODULE_OUTS = [
-     # keep sorted
-+    "drivers/bluetooth/hci_vhci.ko",
-     "drivers/gpu/drm/display/drm_display_helper.ko",
+
      "drivers/i2c/i2c-dev.ko",
      "drivers/misc/eeprom/at24.ko",
 -- 
