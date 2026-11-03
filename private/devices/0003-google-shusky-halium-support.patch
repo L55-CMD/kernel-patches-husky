@@ -22,7 +22,7 @@ index db0b069..f013bcc 100644
      build_vendor_dlkm = True,
      build_vendor_kernel_boot = True,
 -    defconfig_fragments = ["shusky_defconfig"],
-+    defconfig_fragments = ["shusky_defconfig", "halium.config"],
++    defconfig_fragments = ["shusky_defconfig"],
      dtb_outs = ZUMA_DTBS,
      dtbo_additional_outs = ZUMA_DPM_DTBOS,
      dtbo_outs = SHUSKY_DTBOS,
