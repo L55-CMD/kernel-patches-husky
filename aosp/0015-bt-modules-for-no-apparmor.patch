@@ -1,20 +1,20 @@
-From 2222222222222222222222222222222222222222 Mon Sep 17 00:00:00 2001
+From 8689acf60ebdd0635cc9a397d14c4c0312655f9e Mon Sep 17 00:00:00 2001
 From: Luke <luke@localhost>
-Date: Mon, 3 Nov 2026 18:10:00 +0000
-Subject: halium.config: build BT as modules to match GKI module_outs
+Date: Tue, 3 Nov 2026 20:50:43 +0000
+Subject: [PATCH] halium.config: BT as modules (GKI trim compat)
 
-Standalone replacement for the config part of 0014 (dropped in this
-experiment because it edits AppArmor lines that don't exist without the
-AppArmor patches).
 ---
- arch/arm64/configs/halium.config | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ arch/arm64/configs/halium.config | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
 
 diff --git a/arch/arm64/configs/halium.config b/arch/arm64/configs/halium.config
-index 31ce547e..aaaaaaaaaa 100644
+index 414180d..4311b48 100644
 --- a/arch/arm64/configs/halium.config
 +++ b/arch/arm64/configs/halium.config
-@@ -6,11 +6,11 @@
+@@ -6,12 +6,11 @@ CONFIG_NULL_TTY=y
+ CONFIG_DEVTMPFS=y
+ # CONFIG_LTO_CLANG_FULL=y will fail without a LOT of RAM
+ CONFIG_LTO_CLANG_THIN=y
 -# bluebinder
 -CONFIG_BT=y
 -CONFIG_BT_RFCOMM=y
@@ -29,3 +29,6 @@ index 31ce547e..aaaaaaaaaa 100644
  # Do not enforce kernel modules signature
  # CONFIG_MODULE_SIG_FORCE is not set
  # CONFIG_MODULE_SIG_PROTECT is not set
+-- 
+2.54.0.windows.1
+
