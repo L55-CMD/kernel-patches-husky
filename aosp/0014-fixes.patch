@@ -1,0 +1,73 @@
+From 92942fb397529f9dfad3b4d4816ebacc3575a994 Mon Sep 17 00:00:00 2001
+From: Steffen Deusch <steffen@deusch.me>
+Date: Mon, 6 Apr 2026 13:30:21 +0000
+Subject: fixes
+
+Change-Id: Idbe86bf1e159ee224e4b478b3ce5576390dd82e0
+---
+ android/abi_gki_aarch64_pixel    |  8 ++++++++
+ arch/arm64/configs/halium.config | 17 ++++++++++-------
+ drivers/android/binder.c         | 13 ++++++-------
+ 3 files changed, 24 insertions(+), 14 deletions(-)
+
+diff --git a/android/abi_gki_aarch64_pixel b/android/abi_gki_aarch64_pixel
+index 4678f40d85ef..54b811af14b0 100644
+--- a/android/abi_gki_aarch64_pixel
++++ b/android/abi_gki_aarch64_pixel
+@@ -148,6 +148,7 @@
+   bpf_trace_run7
+   bpf_trace_run8
+   bpf_trace_run9
++  bt_err
+   build_skb
+   bus_find_device
+   bus_for_each_dev
+@@ -1046,6 +1047,13 @@
+   handle_sysrq
+   hashlen_string
+   have_governor_per_policy
++  hci_alloc_dev_priv
++  hci_free_dev
++  hci_recv_frame
++  hci_register_dev
++  hci_resume_dev
++  hci_suspend_dev
++  hci_unregister_dev
+   hdmi_avi_infoframe_pack
+   hex2bin
+   hex_dump_to_buffer
+diff --git a/arch/arm64/configs/halium.config b/arch/arm64/configs/halium.config
+index c6905cb34b84..68818c3f3a76 100644
+--- a/arch/arm64/configs/halium.config
++++ b/arch/arm64/configs/halium.config
+@@ -6,12 +6,12 @@ CONFIG_NULL_TTY=y
+ CONFIG_DEVTMPFS=y
+ # CONFIG_LTO_CLANG_FULL=y will fail without a LOT of RAM
+ CONFIG_LTO_CLANG_THIN=y
+-# bluebinder
+-CONFIG_BT=y
+-CONFIG_BT_RFCOMM=y
+-CONFIG_BT_HIDP=y
+-CONFIG_BT_HCIVHCI=y
+-CONFIG_RFKILL=y
++# bluebinder - keep as modules to match GKI module_outs list
++# BT_HCIVHCI is in the device halium.config (not in GKI module_outs)
++CONFIG_BT=m
++CONFIG_BT_RFCOMM=m
++CONFIG_BT_HIDP=m
++CONFIG_RFKILL=m
+ # Do not enforce kernel modules signature
+ # CONFIG_MODULE_SIG_FORCE is not set
+ # CONFIG_MODULE_SIG_PROTECT is not set
+@@ -19,7 +19,10 @@ CONFIG_RFKILL=y
+ # AppArmor
+ CONFIG_SECURITY_APPARMOR=y
+ CONFIG_DEFAULT_SECURITY_APPARMOR=y
+-CONFIG_LSM="landlock,lockdown,yama,loadpin,safesetid,integrity,apparmor,selinux,smack,tomoyo,bpf"
++# selinux must come BEFORE apparmor so that SELinux's secid_to_secctx hook
++# handles binder txn_security_ctx (AppArmor's hook fails on SELinux secids)
++# See research/hwc3-binder-selinux-crash.md
++CONFIG_LSM="landlock,lockdown,yama,loadpin,safesetid,integrity,selinux,apparmor,smack,tomoyo,bpf"
+ 
+ # Waydroid
+ CONFIG_ANDROID_BINDER_DEVICES="binder,hwbinder,vndbinder,anbox-binder,anbox-hwbinder,anbox-vndbinder"
