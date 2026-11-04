@@ -1,0 +1,21 @@
+From 0000000000000000000000000000000000000004 Mon Sep 17 00:00:00 2001
+From: husky-port CI <ci@husky-port.local>
+Date: Tue, 4 Nov 2026 21:15:00 +0000
+Subject: [PATCH] shusky halium.config: drop CFI_PERMISSIVE when CFI is off
+
+With CONFIG_CFI_CLANG disabled (aosp/0017), CFI_PERMISSIVE no longer
+exists in Kconfig and kleaf's fragment validation fails the build
+("actual '', expected CONFIG_CFI_PERMISSIVE=y"). Turn it off here.
+
+---
+ google/shusky/halium.config | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/google/shusky/halium.config b/google/shusky/halium.config
+index 31ce547e..666666666666 100644
+--- a/google/shusky/halium.config
++++ b/google/shusky/halium.config
+@@ -25,2 +25,2 @@
+ CONFIG_SQUASHFS_ZSTD=y
+-CONFIG_CFI_PERMISSIVE=y
++# CONFIG_CFI_PERMISSIVE is not set
