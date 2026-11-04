@@ -57,6 +57,9 @@ index 0000000..31ce547
 +CONFIG_SQUASHFS_LZO=y
 +CONFIG_SQUASHFS_XZ=y
 +CONFIG_SQUASHFS_ZSTD=y
++# LTO mis-links cross-module CFI calls on zuma (dwc3->etm2dram) - match LOS: no LTO
++# CONFIG_LTO_CLANG_THIN is not set
++CONFIG_LTO_NONE=y
 +CONFIG_CFI_PERMISSIVE=y
 diff --git a/google/zuma/constants.bzl b/google/zuma/constants.bzl
 index 4ec3161..50ef789 100644
