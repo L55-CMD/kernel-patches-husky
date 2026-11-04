@@ -1,0 +1,24 @@
+From 0000000000000000000000000000000000000002 Mon Sep 17 00:00:00 2001
+From: husky-port CI <ci@husky-port.local>
+Date: Tue, 4 Nov 2026 15:05:00 +0000
+Subject: [PATCH] halium.config: LTO_NONE instead of CLANG_THIN
+
+Upstream halium.config pins CONFIG_LTO_CLANG_THIN=y (thin LTO was the
+RAM-safe choice vs full LTO). On zuma, thin LTO + CFI mis-links
+cross-module calls (dwc3_exynos_usb -> exynos_usbdrd_s2mpu_manual_control
+bound to etm2dram_probe) -> CFI panic at boot. LOS builds GKI with
+LTO_NONE. Match it.
+
+---
+ arch/arm64/configs/halium.config | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/configs/halium.config b/arch/arm64/configs/halium.config
+index 5350ba3beafe..222222222222 100644
+--- a/arch/arm64/configs/halium.config
++++ b/arch/arm64/configs/halium.config
+@@ -8,2 +8,3 @@
+-CONFIG_LTO_CLANG_THIN=y
++# CONFIG_LTO_CLANG_THIN is not set
++CONFIG_LTO_NONE=y
+ # bluebinder
