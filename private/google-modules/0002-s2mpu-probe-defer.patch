@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000008 Mon Sep 17 00:00:00 2001
+From: husky-port CI <ci@husky-port.local>
+Date: Fri, 7 Nov 2026 22:00:00 +0000
+Subject: [PATCH] phy-exynos-usbdrd-eusb: defer probe when s2mpu device is not
+ registered yet
+
+exynos_usbdrd_phy_probe() looks up the s2mpu platform device via the
+"s2mpus" phandle.  When the phy probes before the pkvm-s2mpu driver has
+registered its platform device, of_find_device_by_node() returns NULL
+and phy_drd->s2mpu stays NULL forever: every exynos_usbdrd_s2mpu_manual_control()
+call then silently returns without configuring the S2MPU, and the first
+USB gadget DMA access faults in the HSI0 SysMMU (PTW access permission
+fault).  Stock Android avoids the race with a fixed module load order;
+module loading via uevents hits it ~50% of boots.
+
+Return -EPROBE_DEFER when the phandle exists but the device has not been
+registered yet, so the driver core re-probes after the s2mpu device
+appears.  Restores the stock manual_control/notify code path (no
+workaround needed).
+
+---
+--- a/soc/gs/drivers/phy/samsung/phy-exynos-usbdrd-eusb.c
++++ b/soc/gs/drivers/phy/samsung/phy-exynos-usbdrd-eusb.c
+@@ -2057,7 +2057,10 @@ static int exynos_usbdrd_phy_probe(struct platform_device *pdev)
+ 	s2mpu_np = of_parse_phandle(dev->of_node, "s2mpus", 0);
+ 	if (s2mpu_np) {
+ 		s2mpu_pdev = of_find_device_by_node(s2mpu_np);
+ 		of_node_put(s2mpu_np);
++		/* The S2MPU platform device may not be registered yet. */
++		if (!s2mpu_pdev)
++			return -EPROBE_DEFER;
+ 	}
+ 
+ #if IS_ENABLED(CONFIG_EXYNOS_PD_HSI0)
+-- 
+2.48.1
