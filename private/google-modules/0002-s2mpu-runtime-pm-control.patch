@@ -35,7 +35,7 @@ modes:
  
  	pr_debug("%s s2mpu = %d\n", __func__, on);
  
-@@ -1870,14 +1870,28 @@
+@@ -1870,14 +1870,30 @@
  		return -ENODEV;
  	}
  
