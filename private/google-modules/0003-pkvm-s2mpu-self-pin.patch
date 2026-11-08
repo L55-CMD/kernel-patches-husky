@@ -1,0 +1,60 @@
+From 0000000000000000000000000000000000000010 Mon Sep 17 00:00:00 2001
+From: husky-port CI <ci@husky-port.local>
+Date: Sat, 8 Nov 2026 14:00:00 +0000
+Subject: [PATCH] pkvm-s2mpu: pin module after registering PM ops
+
+exynos_usbdrd_set_s2mpu_pm_ops() stores s2mpu_pm_control in a raw static
+function pointer in the USB phy module with no lifetime management.  The
+pointer is published during this module's init; if the module is ever
+unloaded afterwards - e.g. modprobe failure cleanup removing
+zero-refcount dependencies after a dependent module (samsung_iommu_v9)
+fails to load - the pointer dangles and the phy's
+exynos_usbdrd_s2mpu_manual_control() calls into freed module memory.
+Observed on husky UT boot as a CFI fatal exception with the call target
+reused by the fips140 module.
+
+Pin the module (refcount > 0 for the lifetime of the kernel) once init
+has completed successfully, so delete_module can never free it.
+
+---
+diff --git a/soc/gs/drivers/soc/google/pkvm-s2mpu/common/pkvm_s2mpu.c b/soc/gs/drivers/soc/google/pkvm-s2mpu/common/pkvm_s2mpu.c
+index 13ebf8b..56e10ab 100644
+--- a/soc/gs/drivers/soc/google/pkvm-s2mpu/common/pkvm_s2mpu.c
++++ b/soc/gs/drivers/soc/google/pkvm-s2mpu/common/pkvm_s2mpu.c
+@@ -443,7 +443,35 @@ static int s2mpu_driver_register(struct platform_driver *driver)
+ 	return platform_driver_register(driver);
+ }
+ 
+-module_driver(s2mpu_driver, s2mpu_driver_register, platform_driver_unregister);
++static int __init pkvm_s2mpu_mod_init(void)
++{
++	int ret;
++
++	ret = s2mpu_driver_register(&s2mpu_driver);
++	if (ret)
++		return ret;
++
++	/*
++	 * s2mpu_driver_register() published s2mpu_pm_control into a raw
++	 * static pointer in the USB phy module (exynos_usbdrd_set_s2mpu_pm_ops)
++	 * with no lifetime management.  If this module is ever unloaded -
++	 * e.g. modprobe failure cleanup removing zero-refcount dependencies
++	 * after a dependent module fails to load - that pointer dangles and
++	 * the phy's exynos_usbdrd_s2mpu_manual_control() jumps into freed
++	 * module memory (observed: CFI fatal, target reused by fips140).
++	 * This module must never be unloaded.
++	 */
++	__module_get(THIS_MODULE);
++
++	return 0;
++}
++module_init(pkvm_s2mpu_mod_init);
++
++static void __exit pkvm_s2mpu_mod_exit(void)
++{
++	platform_driver_unregister(&s2mpu_driver);
++}
++module_exit(pkvm_s2mpu_mod_exit);
+ 
+ MODULE_LICENSE("GPL v2");
+ MODULE_AUTHOR("David Brazdil <dbrazdil@google.com>");
