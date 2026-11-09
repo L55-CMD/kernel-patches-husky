@@ -1,7 +1,7 @@
-From 0000000000000000000000000000000000000009 Mon Sep 17 00:00:00 2001
+From 000000000000000000000000000000000000000a Mon Sep 17 00:00:00 2001
 From: husky-port CI <ci@husky-port.local>
-Date: Sat, 8 Nov 2026 11:00:00 +0000
-Subject: [PATCH] phy-exynos-usbdrd-eusb: resolve s2mpu link lazily
+Date: Mon, 9 Nov 2026 10:30:00 +0000
+Subject: [PATCH] phy-exynos-usbdrd-eusb: link s2mpu at pkvm probe, control via runtime PM
 
 exynos_usbdrd_phy_probe() resolves phy_drd->s2mpu at probe time.  When
 the phy wins the probe-order race against pkvm-s2mpu, the link stays
@@ -9,28 +9,38 @@ NULL forever and every exynos_usbdrd_s2mpu_manual_control() call
 silently no-ops -> S2MPU is never switched to allow-all -> HSI0 SysMMU
 PTW access fault at the first USB gadget DMA -> panic.
 
-An earlier attempt to return -EPROBE_DEFER from the probe made things
-worse: the phy never came back at all (no dwc3, zero USB enumeration,
-boot hangs at the splash).  Keep the probe 100% stock instead and
-resolve the link at the two places that are guaranteed to run after
-both devices exist:
+Fix the race ONLY in exynos_usbdrd_set_s2mpu_pm_ops(), which is called
+from pkvm_s2mpu's own probe: at that instant the S2MPU platform device
+is guaranteed to be registered, so a phy that probed earlier gets
+linked there, deterministically.  Probe context is a safe place for
+the device-tree lookup.
 
-1. exynos_usbdrd_set_s2mpu_pm_ops(), called from pkvm_s2mpu's own
-   probe: at that instant the S2MPU platform device is guaranteed to
-   be registered, so a phy that probed earlier gets linked here,
-   deterministically, with no reliance on driver-core re-probe or on
-   manual_control() call timing.
-2. exynos_usbdrd_s2mpu_manual_control(): covers the case where the
-   phy probes after pkvm-s2mpu but before any consumer has called
-   set_s2mpu_pm_ops ordering assumptions; re-checked on every hsi0
-   power-domain transition.
+Do NOT resolve the link in exynos_usbdrd_s2mpu_manual_control(): that
+function runs from the hsi0 power-domain path, where driver-core
+lookups (of_find_device_by_node) can deadlock against concurrent device
+probes (e.g. dm-node uevents after dmsetup mknodes).  The previous
+lazy-lookup variant hard-froze every boot at ~6.1-6.45s on both r8 and
+r12 kernels; boots without it always passed that point.
 
+Also replace the raw cross-module function pointer (s2mpu_notify) with
+the S2MPU driver's own runtime-PM implementation, as the earlier
+s2mpu-runtime-pm-control variant did (the only variant so far that
+reached userspace with working USB): the indirect call through a raw
+pointer into another module is a CFI/lifetime hazard.
 ---
 diff --git a/soc/gs/drivers/phy/samsung/phy-exynos-usbdrd-eusb.c b/soc/gs/drivers/phy/samsung/phy-exynos-usbdrd-eusb.c
-index 80b291b..4d8c136 100644
+index 80b291b..c1c7701 100644
 --- a/soc/gs/drivers/phy/samsung/phy-exynos-usbdrd-eusb.c
 +++ b/soc/gs/drivers/phy/samsung/phy-exynos-usbdrd-eusb.c
-@@ -42,13 +42,37 @@ EXPORT_SYMBOL_GPL(phycon_base_addr);
+@@ -17,6 +17,7 @@
+ #include <linux/phy/phy.h>
+ #include <linux/platform_device.h>
+ #include <linux/mutex.h>
++#include <linux/pm_runtime.h>
+ #include <linux/mfd/syscon.h>
+ #include <linux/regmap.h>
+ #include <linux/regulator/consumer.h>
+@@ -42,13 +43,38 @@ EXPORT_SYMBOL_GPL(phycon_base_addr);
  
  static int (*s2mpu_notify)(struct device *dev, bool on);
  
@@ -52,7 +62,8 @@ index 80b291b..4d8c136 100644
 +	 * Called from pkvm_s2mpu's probe: the S2MPU platform device
 +	 * exists NOW.  If the phy probed earlier and lost the race,
 +	 * link it immediately instead of waiting for a
-+	 * manual_control() call that may never come.
++	 * manual_control() call that may never come.  This runs in
++	 * probe context, where the driver-core lookup is safe.
 +	 */
 +	phy_drd = exynos_usbdrd_get_struct();
 +	if (phy_drd && !phy_drd->s2mpu) {
@@ -68,36 +79,40 @@ index 80b291b..4d8c136 100644
  	return cmpxchg_release(&s2mpu_notify, NULL, cb) ? -EBUSY : 0;
  }
  EXPORT_SYMBOL_GPL(exynos_usbdrd_set_s2mpu_pm_ops);
-@@ -1859,6 +1883,8 @@ static int exynos_usbdrd_phy_power_off(struct phy *phy)
+@@ -1859,7 +1885,6 @@ static int exynos_usbdrd_phy_power_off(struct phy *phy)
  int exynos_usbdrd_s2mpu_manual_control(bool on)
  {
  	struct exynos_usbdrd_phy *phy_drd;
-+	struct device_node *s2mpu_np;
-+	struct platform_device *s2mpu_pdev;
- 	int (*__s2mpu_notify)(struct device *dev, bool on);
+-	int (*__s2mpu_notify)(struct device *dev, bool on);
  
  	pr_debug("%s s2mpu = %d\n", __func__, on);
-@@ -1870,6 +1896,23 @@ int exynos_usbdrd_s2mpu_manual_control(bool on)
+ 
+@@ -1870,14 +1895,20 @@ int exynos_usbdrd_s2mpu_manual_control(bool on)
  		return -ENODEV;
  	}
  
+-	/* Paired with cmpxchg_release in exynos_usbdrd_set_s2mpu_pm_ops. */
+-	__s2mpu_notify = smp_load_acquire(&s2mpu_notify);
+-	if (!phy_drd->s2mpu || !__s2mpu_notify)
++	if (!phy_drd->s2mpu)
+ 		return 0;
+ 
+-	__s2mpu_notify(phy_drd->s2mpu, on);
 +	/*
-+	 * The phy may have probed before the S2MPU platform device was
-+	 * registered, leaving phy_drd->s2mpu NULL forever.  Resolve the
-+	 * link here instead: manual_control() is called again on every
-+	 * hsi0 power-domain transition, long before the gadget's first
-+	 * DMA, so a late resolution still takes effect.
++	 * No device-tree lookups and no raw cross-module function
++	 * pointer here: this runs from the hsi0 power-domain path.
++	 * The link is resolved at probe time (phy probe, or pkvm's
++	 * probe via set_s2mpu_pm_ops above).  Control the S2MPU
++	 * through its driver's own runtime-PM implementation.
 +	 */
-+	if (!phy_drd->s2mpu) {
-+		s2mpu_np = of_parse_phandle(phy_drd->dev->of_node, "s2mpus", 0);
-+		if (s2mpu_np) {
-+			s2mpu_pdev = of_find_device_by_node(s2mpu_np);
-+			of_node_put(s2mpu_np);
-+			if (s2mpu_pdev)
-+				phy_drd->s2mpu = &s2mpu_pdev->dev;
-+		}
-+	}
-+
- 	/* Paired with cmpxchg_release in exynos_usbdrd_set_s2mpu_pm_ops. */
- 	__s2mpu_notify = smp_load_acquire(&s2mpu_notify);
- 	if (!phy_drd->s2mpu || !__s2mpu_notify)
++	if (on)
++		return pm_runtime_resume(phy_drd->s2mpu);
+ 
+-	return 0;
++	return pm_runtime_suspend(phy_drd->s2mpu);
+ }
+ EXPORT_SYMBOL_GPL(exynos_usbdrd_s2mpu_manual_control);
+ 
+
+-- 
+2.48.1
