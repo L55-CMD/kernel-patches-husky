@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000020 Mon Sep 17 00:00:00 2001
+From: husky-port CI <ci@husky-port.local>
+Date: Tue, 10 Nov 2026 13:45:00 +0000
+Subject: [PATCH] dwc3-exynos: defer glue probe until DWC3 core is ready
+
+of_platform_populate() registers the DWC3 child before its driver has
+necessarily finished probing. If platform_get_drvdata() returns NULL, the
+glue probe jumps to populate_err with ret still zero, reports success and
+never retries. dwc3_exynos_otg_init() then never runs, leaving ConfigFS
+gadgets bound but the UDC permanently "not attached"; the shutdown path
+also dereferences the missing OTG state.
+
+Return -EPROBE_DEFER for this case so the glue probe retries after the
+DWC3 core driver is ready.
+---
+diff --git a/soc/gs/drivers/usb/dwc3/dwc3-exynos.c b/soc/gs/drivers/usb/dwc3/dwc3-exynos.c
+index 3f96b06..b1a4f62 100644
+--- a/soc/gs/drivers/usb/dwc3/dwc3-exynos.c
++++ b/soc/gs/drivers/usb/dwc3/dwc3-exynos.c
+@@ -1299,7 +1299,9 @@ static int dwc3_exynos_probe(struct platform_device *pdev)
+ 
+ 	dwc3_pdev = of_find_device_by_node(dwc3_np);
+ 	exynos->dwc = platform_get_drvdata(dwc3_pdev);
+-	if (exynos->dwc == NULL)
++	if (exynos->dwc == NULL) {
++		ret = -EPROBE_DEFER;
+ 		goto populate_err;
++	}
+ 
+ 	/* dwc3 core configurations */
+ 	pm_runtime_allow(exynos->dwc->dev);
+-- 
+2.48.1
