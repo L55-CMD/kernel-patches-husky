@@ -1,0 +1,57 @@
+From 0000000000000000000000000000000000000040 Mon Sep 17 00:00:00 2001
+From: husky-port CI <ci@husky-port.local>
+Date: Thu, 12 Nov 2026 09:55:00 +0000
+Subject: [PATCH] display: hk3: force-60Hz diagnostic - hide 120Hz panel modes
+
+Diagnostic for the bottom-band display artifact on husky. Ubuntu Touch
+boots locked at 1008x2244@120 while stock runs 60Hz NS and switches
+dynamically; the TE2/self-refresh/op-hs path at 120Hz is a prime suspect
+and cannot be exercised from userspace because the composer3 HAL ignores
+vendor.display.preferred_mode / boot_config props.
+
+Wrap both 120Hz entries of hk3_modes in #if 0 so the panel exposes only
+1344x2992x60 (PREFERRED) and 1008x2244x60; ARRAY_SIZE(hk3_modes) picks
+up the shrink automatically. Toggle: delete the two #if 0 / #endif
+pairs. Expected on UT boot: DSI-1 mode 1008x2244x60 (or WQHD60). If the
+bottom band clears, refresh rate / TE2 / op-hs is implicated; if not,
+the remaining suspects are DSC-via-composer3 and GIDLE.
+
+Test branch only (test-display-force60); do not merge to the r8
+known-good baseline.
+---
+diff --git a/google/shusky/display/panel-google-hk3.c b/google/shusky/display/panel-google-hk3.c
+index 7428bb5..986d6c3 100644
+--- a/google/shusky/display/panel-google-hk3.c
++++ b/google/shusky/display/panel-google-hk3.c
+@@ -2456,6 +2456,7 @@ static const struct exynos_panel_mode hk3_modes[] = {
+ 		},
+ 		.idle_mode = IDLE_MODE_ON_SELF_REFRESH,
+ 	},
++#if 0 /* HUSKY_DIAG force-60Hz: hide 120Hz modes (bottom-band artifact experiment) */
+ 	{
+ 		.mode = {
+ 			.name = "1344x2992x120",
+@@ -2486,6 +2487,7 @@ static const struct exynos_panel_mode hk3_modes[] = {
+ 		},
+ 		.idle_mode = IDLE_MODE_ON_INACTIVITY,
+ 	},
++#endif /* HUSKY_DIAG force-60Hz */
+ #ifndef PANEL_FACTORY_BUILD
+ 	{
+ 		.mode = {
+@@ -2516,6 +2518,7 @@ static const struct exynos_panel_mode hk3_modes[] = {
+ 		},
+ 		.idle_mode = IDLE_MODE_ON_SELF_REFRESH,
+ 	},
++#if 0 /* HUSKY_DIAG force-60Hz: hide 120Hz modes (bottom-band artifact experiment) */
+ 	{
+ 		.mode = {
+ 			.name = "1008x2244x120",
+@@ -2546,6 +2549,7 @@ static const struct exynos_panel_mode hk3_modes[] = {
+ 		},
+ 		.idle_mode = IDLE_MODE_ON_INACTIVITY,
+ 	},
++#endif /* HUSKY_DIAG force-60Hz */
+ #endif
+ };
+ 
