@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000060 Mon Sep 17 00:0:00 2001
+From: husky-port CI <ci@husky-port.local>
+Date: Thu, 12 Nov 2026 10:05:00 +0000
+Subject: [PATCH] display: hk3: WQHD-only diagnostic - hide FHD panel modes
+
+Second diagnostic for the bottom-band display artifact on husky
+(alternative to force-60Hz). Wrap both 1008x2244 entries of hk3_modes
+in #if 0 and also hide the 120Hz WQHD entry, so the panel exposes only
+1344x2992x60 (PREFERRED); ARRAY_SIZE(hk3_modes) adjusts automatically.
+Toggle: delete the three #if 0 / #endif pairs.
+
+If the artifact clears at WQHD60 but persists at FHD60 (force-60Hz
+branch), the FHD DSC path (12x187 slices, PPS via composer3) is
+implicated; if it persists at both resolutions, resolution-independent
+causes (GIDLE/self-refresh, TE2) remain.
+
+Test branch only (test-display-wqhd); do not merge to the r8
+known-good baseline.
+---
+diff --git a/google/shusky/display/panel-google-hk3.c b/google/shusky/display/panel-google-hk3.c
+index 7428bb5..2360835 100644
+--- a/google/shusky/display/panel-google-hk3.c
++++ b/google/shusky/display/panel-google-hk3.c
+@@ -2487,6 +2487,7 @@ static const struct exynos_panel_mode hk3_modes[] = {
+ 		.idle_mode = IDLE_MODE_ON_INACTIVITY,
+ 	},
+ #ifndef PANEL_FACTORY_BUILD
++#if 0 /* HUSKY_DIAG wqhd-only: hide FHD modes (bottom-band artifact experiment) */
+ 	{
+ 		.mode = {
+ 			.name = "1008x2244x60",
+@@ -2516,6 +2517,8 @@ static const struct exynos_panel_mode hk3_modes[] = {
+ 		},
+ 		.idle_mode = IDLE_MODE_ON_SELF_REFRESH,
+ 	},
++#endif /* HUSKY_DIAG wqhd-only (FHD hidden) */
++#if 0 /* HUSKY_DIAG wqhd-only: hide 120Hz WQHD too — lock WQHD60 baseline */
+ 	{
+ 		.mode = {
+ 			.name = "1008x2244x120",
+@@ -2546,6 +2549,7 @@ static const struct exynos_panel_mode hk3_modes[] = {
+ 		},
+ 		.idle_mode = IDLE_MODE_ON_INACTIVITY,
+ 	},
++#endif /* HUSKY_DIAG wqhd-only */
+ #endif
+ };
+ 
