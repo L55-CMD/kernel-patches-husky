@@ -1,0 +1,26 @@
+From c70b2d89776b653cb64b13c4496fada8ec161ab3 Mon Sep 17 00:00:00 2001
+From: Luke <lukeserventi2000@gmail.com>
+Date: Tue, 17 Nov 2026 23:23:34 +0000
+Subject: [PATCH] google/shusky: halium.config: disable LTO for pKVM S2MPU test
+
+---
+ google/shusky/halium.config | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/google/shusky/halium.config b/google/shusky/halium.config
+index 31ce547..2ec6fe9 100644
+--- a/google/shusky/halium.config
++++ b/google/shusky/halium.config
+@@ -24,3 +24,9 @@ CONFIG_SQUASHFS_LZO=y
+ CONFIG_SQUASHFS_XZ=y
+ CONFIG_SQUASHFS_ZSTD=y
+ CONFIG_CFI_PERMISSIVE=y
++
++# pKVM S2MPU diagnostic: LTO_NONE to test the host stage-2 -> MPT notifier
++# (S2MPU access-faults SysMMU page-table walks for post-init allocations
++# under LTO_CLANG_THIN; see device-google-husky BRINGUP-LOG 2026-11-17).
++CONFIG_LTO_NONE=y
++# CONFIG_LTO_CLANG_THIN is not set
+-- 
+2.54.0.windows.1
+
