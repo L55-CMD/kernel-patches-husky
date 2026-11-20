@@ -1,0 +1,40 @@
+From 31598561a2aad268efd67413952b6dac27d69a86 Mon Sep 17 00:00:00 2001
+From: Luke <lukeserventi2000@gmail.com>
+Date: Thu, 20 Nov 2026 20:45:00 +0000
+Subject: [PATCH] halium.config: enable CONFIG_PM_AUTOSLEEP for repowerd libsuspend
+
+The GKI build lost CONFIG_PM_AUTOSLEEP (stock Android has it). Runtime
+proof on husky 2026-11-20: /sys/power/autosleep is ENOENT and android
+libsuspend init probe (write "on" to /sys/power/state) returns EINVAL,
+so repowerd logs "Failed to initialize libsuspend" every boot and falls
+back to LogindSystemPowerControl (no wakelock-gated autosuspend).
+
+Adds CONFIG_PM_AUTOSLEEP=y to the EFFECTIVE GKI defconfig fragment
+(arch/arm64/configs/halium.config, consumed per aosp/0013). CONFIG_PM_
+WAKELOCKS is already effective (/sys/power/wake_lock exists), untouched.
+
+Phase 2 change-set; validate on device before promoting (see
+husky-verify/phase2-power-usability.md): /sys/power/autosleep present,
+repowerd starts LibsuspendSystemPowerControl, known-good suite unchanged.
+
+---
+ arch/arm64/configs/halium.config | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/arch/arm64/configs/halium.config b/arch/arm64/configs/halium.config
+index 68818c3f3a76..81d408b1cbc6 100644
+--- a/arch/arm64/configs/halium.config
++++ b/arch/arm64/configs/halium.config
+@@ -40,3 +40,10 @@
+ 
+ # USB networking (RNDIS) for SSH debugging over USB
+ CONFIG_USB_CONFIGFS_RNDIS=y
++
++# Android autosuspend (libsuspend): repowerd LibsuspendSystemPowerControl
++# probe-writes "on" to /sys/power/state and requires /sys/power/autosleep.
++# Our GKI config dropped it -> EINVAL probe -> repowerd falls back to logind
++# suspend (no wakelock-gated autosuspend). See husky-verify
++# phase2-power-usability.md (Phase 2). Tested missing on device 2026-11-20.
++CONFIG_PM_AUTOSLEEP=y
+-- 
+2.43.0
